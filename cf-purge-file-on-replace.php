@@ -40,6 +40,7 @@ class CF_Purge_File_On_Replace {
             'enable_success_email' => 1,
             'enable_failure_email' => 1,
             'email_throttle_minutes' => 15,
+            'delete_settings_on_uninstall' => 0,
         ];
         $saved = get_option(self::OPTION_KEY, []);
         if (!is_array($saved)) $saved = [];
@@ -253,6 +254,7 @@ class CF_Purge_File_On_Replace {
         add_settings_field('enable_success_email', 'Email on successful purge', [__CLASS__, 'field_enable_success_email'], 'cf-purge-file-on-replace', 'cf_purge_file_main');
         add_settings_field('enable_failure_email', 'Enable failure emails', [__CLASS__, 'field_enable_failure_email'], 'cf-purge-file-on-replace', 'cf_purge_file_main');
         add_settings_field('email_throttle_minutes', 'Email throttle (minutes)', [__CLASS__, 'field_throttle'], 'cf-purge-file-on-replace', 'cf_purge_file_main');
+        add_settings_field('delete_settings_on_uninstall', 'Delete settings on uninstall', [__CLASS__, 'field_delete_settings_on_uninstall'], 'cf-purge-file-on-replace', 'cf_purge_file_main');
     }
 
     public static function sanitize_settings($input): array {
@@ -265,6 +267,7 @@ class CF_Purge_File_On_Replace {
             $out['enable_success_email'] = !empty($input['enable_success_email']) ? 1 : 0;
             $out['enable_failure_email'] = !empty($input['enable_failure_email']) ? 1 : 0;
             $out['email_throttle_minutes'] = max(1, (int) ($input['email_throttle_minutes'] ?? 15));
+            $out['delete_settings_on_uninstall'] = !empty($input['delete_settings_on_uninstall']) ? 1 : 0;
         }
 
         return $out;
@@ -365,6 +368,16 @@ class CF_Purge_File_On_Replace {
             '<input type="number" min="1" name="%s[email_throttle_minutes]" value="%d" class="small-text" /> <span class="description">Prevents repeated emails if something loops.</span>',
             esc_attr(self::OPTION_KEY),
             (int) $s['email_throttle_minutes']
+        );
+    }
+
+    public static function field_delete_settings_on_uninstall(): void {
+        $s = self::get_settings();
+        printf(
+            '<label><input type="checkbox" name="%s[delete_settings_on_uninstall]" value="1" %s /> Delete plugin settings (including API token) when the plugin is deleted</label>
+             <p class="description">This runs only when you click <strong>Delete</strong> in the Plugins screen (not when deactivating).</p>',
+            esc_attr(self::OPTION_KEY),
+            checked(1, (int) $s['delete_settings_on_uninstall'], false)
         );
     }
 }
