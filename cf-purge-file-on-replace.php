@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Cloudflare Purge File on Replace
  * Description: Purges the exact file URL from Cloudflare when a file attachment is replaced/updated (useful for "Replace Media" workflows).
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: BlueFractals
  * License: GPL2+
  */
@@ -121,23 +121,31 @@ class CF_Purge_File_On_Replace {
     }
 
     private static function format_message(int $attachment_id, string $trigger, array $urls, string $error_detail): string {
-        $site = get_bloginfo('name');
-        $attachment_edit = $attachment_id > 0
-            ? admin_url('post.php?post=' . $attachment_id . '&action=edit')
-            : '(manual purge - no attachment)';
-
-        $attachment_url = $attachment_id > 0
-            ? wp_get_attachment_url($attachment_id)
-            : '(manual purge - URL supplied)';
-
-        return
+        $site      = get_bloginfo('name');
+        $timestamp = wp_date('Y-m-d H:i:s');
+    
+        $lines =
             "Site: {$site}\n" .
-            "Trigger: {$trigger}\n" .
-            "Attachment ID: " . ($attachment_id > 0 ? $attachment_id : '(none)') . "\n" .
-            "Attachment edit link: {$attachment_edit}\n" .
-            "Attachment URL: {$attachment_url}\n" .
+            "Time: {$timestamp}\n" .
+            "Trigger: {$trigger}\n";
+    
+        if ($attachment_id > 0) {
+            $attachment_edit = admin_url('post.php?post=' . $attachment_id . '&action=edit');
+            $attachment_url  = wp_get_attachment_url($attachment_id);
+    
+            $lines .=
+                "Attachment ID: {$attachment_id}\n" .
+                "Attachment edit link: {$attachment_edit}\n" .
+                "Attachment URL: " . ($attachment_url ?: '(unknown)') . "\n";
+        } else {
+            $lines .= "Attachment: (manual purge)\n";
+        }
+    
+        $lines .=
             "Purged URLs:\n- " . implode("\n- ", $urls) . "\n\n" .
             "Error/Detail:\n{$error_detail}\n";
+    
+        return $lines;
     }
 
     private static function notify_admin(string $message): void {
@@ -173,10 +181,23 @@ class CF_Purge_File_On_Replace {
     
         $site_name = get_bloginfo('name');
         $timestamp = wp_date('Y-m-d H:i:s'); // site timezone
+        $subject   = '[' . $site_name . '] Cloudflare purge completed';
     
+        // Manual purge: no attachment context
+        if ($attachment_id <= 0) {
+            $message =
+                "Site: {$site_name}\n" .
+                "Time: {$timestamp}\n" .
+                "Trigger: {$trigger}\n" .
+                "Purged URLs:\n- " . implode("\n- ", $urls) . "\n";
+    
+            wp_mail($to, $subject, $message);
+            return;
+        }
+    
+        // Attachment-based purge
         $attachment_edit = admin_url('post.php?post=' . $attachment_id . '&action=edit');
-    
-        $subject = '[' . $site_name . '] Cloudflare purge completed';
+        $attachment_url  = wp_get_attachment_url($attachment_id);
     
         $message =
             "Site: {$site_name}\n" .
@@ -184,6 +205,7 @@ class CF_Purge_File_On_Replace {
             "Trigger: {$trigger}\n" .
             "Attachment ID: {$attachment_id}\n" .
             "Attachment edit link: {$attachment_edit}\n" .
+            "Attachment URL: " . ($attachment_url ?: '(unknown)') . "\n" .
             "Purged URLs:\n- " . implode("\n- ", $urls) . "\n";
     
         wp_mail($to, $subject, $message);
