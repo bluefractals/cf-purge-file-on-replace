@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Cloudflare Purge File on Replace
  * Description: Purges the exact file URL from Cloudflare when a file attachment is replaced/updated (useful for "Replace Media" workflows).
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: BlueFractals
  * License: GPL2+
  */
@@ -122,15 +122,20 @@ class CF_Purge_File_On_Replace {
 
     private static function format_message(int $attachment_id, string $trigger, array $urls, string $error_detail): string {
         $site = get_bloginfo('name');
-        $attachment_edit = admin_url('post.php?post=' . $attachment_id . '&action=edit');
-        $attachment_url = wp_get_attachment_url($attachment_id);
+        $attachment_edit = $attachment_id > 0
+            ? admin_url('post.php?post=' . $attachment_id . '&action=edit')
+            : '(manual purge - no attachment)';
+
+        $attachment_url = $attachment_id > 0
+            ? wp_get_attachment_url($attachment_id)
+            : '(manual purge - URL supplied)';
 
         return
             "Site: {$site}\n" .
             "Trigger: {$trigger}\n" .
-            "Attachment ID: {$attachment_id}\n" .
+            "Attachment ID: " . ($attachment_id > 0 ? $attachment_id : '(none)') . "\n" .
             "Attachment edit link: {$attachment_edit}\n" .
-            "Attachment URL: " . ($attachment_url ?: '(unknown)') . "\n" .
+            "Attachment URL: {$attachment_url}\n" .
             "Purged URLs:\n- " . implode("\n- ", $urls) . "\n\n" .
             "Error/Detail:\n{$error_detail}\n";
     }
